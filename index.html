@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Market Chart</title>
+    <script src="/static/lightweight-charts.standalone.production.js"></script>
+    <script>if (!window.LightweightCharts) document.write('<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>');</script>
+    <style>
+        :root {
+            --bg: #12161c;
+            --panel: #1a2029;
+            --line: #2a323e;
+            --text: #e6e9ee;
+            --muted: #8a94a3;
+            --up: #26a69a;
+            --down: #ef5350;
+            --accent: #5b9cf5
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            font-size: 14px
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 18px;
+            padding: 10px 14px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line)
+        }
+
+        .mono {
+            font-family: Consolas, "Courier New", monospace
+        }
+
+        .sym {
+            font-weight: 600;
+            font-size: 18px
+        }
+
+        .price {
+            font-size: 22px
+        }
+
+        .up {
+            color: var(--up)
+        }
+
+        .down {
+            color: var(--down)
+        }
+
+        .stats {
+            color: var(--muted);
+            font-size: 13px;
+            display: flex;
+            gap: 12px
+        }
+
+        .stats b {
+            color: var(--text);
+            font-weight: 500
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-left: auto
+        }
+
+        .seg {
+            display: inline-flex;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden
+        }
+
+        .seg button {
+            background: 0;
+            color: var(--muted);
+            border: 0;
+            padding: 6px 11px;
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer
+        }
+
+        .seg button+button {
+            border-left: 1px solid var(--line)
+        }
+
+        .seg button.active {
+            background: var(--accent);
+            color: #0c1017;
+            font-weight: 600
+        }
+
+        button:focus-visible,
+        input:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px
+        }
+
+        input[type=text] {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font: inherit;
+            width: 130px
+        }
+
+        .go {
+            background: var(--accent);
+            color: #0c1017;
+            border: 0;
+            border-radius: 6px;
+            padding: 6px 13px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer
+        }
+
+        .lbl {
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        label.chk {
+            color: var(--muted);
+            font-size: 13px;
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+            cursor: pointer
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            min-height: 0
+        }
+
+        .col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0
+        }
+
+        .pane {
+            position: relative;
+            flex: 1;
+            min-height: 220px
+        }
+
+        .pane>div.c {
+            position: absolute;
+            inset: 0
+        }
+
+        #rsiWrap {
+            flex: 0 0 130px;
+            border-top: 1px solid var(--line);
+            position: relative
+        }
+
+        #legend {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            z-index: 4;
+            font-size: 12.5px;
+            pointer-events: none
+        }
+
+        #msg {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            background: #3a1f22;
+            color: #ffb4b0;
+            border: 1px solid #6b2f33;
+            padding: 8px 14px;
+            border-radius: 6px;
+            display: none;
+            max-width: 90%
+        }
+
+        #msg.show {
+            display: block
+        }
+
+        #spin {
+            position: absolute;
+            top: 8px;
+            right: 80px;
+            z-index: 4;
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        aside {
+            width: 230px;
+            border-left: 1px solid var(--line);
+            background: var(--panel);
+            overflow: auto
+        }
+
+        aside h3 {
+            margin: 0;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 9px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .row:hover,
+        .row.on {
+            background: #232b37
+        }
+
+        .row small {
+            display: block;
+            color: var(--muted)
+        }
+
+        .row .r {
+            text-align: right
+        }
+
+        .bar {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            padding: 6px 14px;
+            border-top: 1px solid var(--line);
+            flex-wrap: wrap
+        }
+
+        footer {
+            padding: 5px 14px;
+            font-size: 12px;
+            color: var(--muted);
+            border-top: 1px solid var(--line)
+        }
+
+        footer a {
+            color: var(--muted)
+        }
+
+        @media(max-width:900px) {
+            aside {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div><span class="sym" id="sym">-</span> <span class="price mono" id="price">-</span> <span class="mono"
+                id="chg"></span></div>
+        <div class="stats mono"><span>H <b id="hi">-</b></span><span>L <b id="lo">-</b></span><span>Vol <b
+                    id="vol">-</b></span></div>
+        <div class="controls">
+            <div class="seg" id="srcSeg"><button data-s="crypto" class="active">Crypto</button><button
+                    data-s="stock">NSE stocks</button></div>
+            <input type="text" id="symIn" list="pre" spellcheck="false" aria-label="Symbol"><datalist
+                id="pre"></datalist>
+            <button class="go" id="goBtn">Load chart</button>
+        </div>
+    </header>
+    <main>
+        <div class="col">
+            <div class="pane">
+                <div id="legend" class="mono"></div>
+                <div id="msg" role="alert"></div>
+                <div id="spin"></div>
+                <div class="c" id="chart"></div>
+            </div>
+            <div id="rsiWrap">
+                <div class="lbl" style="position:absolute;top:4px;left:10px;z-index:3">RSI 14</div>
+                <div class="c" id="rsi" style="position:absolute;inset:0"></div>
+            </div>
+            <div class="bar">
+                <span class="lbl">Range</span>
+                <div class="seg" id="rangeSeg"><button data-r="1D">1D</button><button data-r="5D">5D</button><button
+                        data-r="1M">1M</button><button data-r="6M">6M</button><button data-r="1Y">1Y</button></div>
+                <span class="lbl">Candle size</span>
+                <div class="seg" id="tfSeg"><button data-i="1m">1m</button><button data-i="5m">5m</button><button
+                        data-i="15m">15m</button><button data-i="1h" class="active">1h</button><button data-i="1d">1
+                        day</button></div>
+                <div class="seg" id="typeSeg"><button data-t="candle" class="active">Candles</button><button
+                        data-t="line">Line</button></div>
+                <label class="chk"><input type="checkbox" id="cSma" checked>SMA 20</label>
+                <label class="chk"><input type="checkbox" id="cEma" checked>EMA 50</label>
+                <label class="chk"><input type="checkbox" id="cVol" checked>Volume</label>
+                <label class="chk"><input type="checkbox" id="cRsi" checked>RSI</label>
+                <label class="chk"><input type="checkbox" id="cLive" checked>Auto-refresh</label>
+                <span class="lbl" id="upd"></span>
+            </div>
+        </div>
+        <aside>
+            <h3>Watchlist</h3>
+            <div id="wl"></div>
+        </aside>
+    </main>
+    <footer>Data: Binance (crypto), Yahoo Finance via yfinance (stocks). Times in IST. Chart: <a
+            href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>. API
+        docs: <a href="/docs">/docs</a></footer>
+    <script>
+        const $ = id => document.getElementById(id), IST = 19800;
+        const RANGES = { "1D": { stock: ["5m", 80], crypto: ["5m", 288] }, "5D": { stock: ["15m", 130], crypto: ["15m", 480] }, "1M": { stock: ["1h", 160], crypto: ["1h", 720] }, "6M": { stock: ["1d", 126], crypto: ["1d", 180] }, "1Y": { stock: ["1d", 252], crypto: ["1d", 365] } };
+        let source = "crypto", symbol = "BTCUSDT", interval = "1h", limit = 300, presets = { crypto: [], stock: [] }, lastRows = [];
+        const opt = {
+            autoSize: true, layout: { attributionLogo: false, background: { color: "#12161c" }, textColor: "#8a94a3", fontFamily: "Segoe UI, sans-serif" },
+            grid: { vertLines: { color: "#1e2530" }, horzLines: { color: "#1e2530" } }, rightPriceScale: { borderColor: "#2a323e", minimumWidth: 70 },
+            timeScale: { borderColor: "#2a323e", timeVisible: true, secondsVisible: false }, crosshair: { mode: 0 }
+        };
+        const chart = LightweightCharts.createChart($("chart"), opt), rchart = LightweightCharts.createChart($("rsi"), opt);
+        const candle = chart.addCandlestickSeries({ upColor: "#26a69a", downColor: "#ef5350", borderVisible: false, wickUpColor: "#26a69a", wickDownColor: "#ef5350" });
+        const line = chart.addLineSeries({ color: "#5b9cf5", lineWidth: 2, visible: false });
+        const vol = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "" }); vol.priceScale().applyOptions({ scaleMargins: { top: .8, bottom: 0 } });
+        const sma = chart.addLineSeries({ color: "#f5c542", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+        const ema = chart.addLineSeries({ color: "#c77dff", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+        const rs = rchart.addLineSeries({ color: "#5b9cf5", lineWidth: 1 });
+        [70, 30].forEach(p => rs.createPriceLine({ price: p, color: "#555", lineStyle: 2, lineWidth: 1, axisLabelVisible: true }));
+        let busy = false; const link = (a, b) => a.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && !busy) { busy = true; b.timeScale().setVisibleLogicalRange(r); busy = false } });
+        link(chart, rchart); link(rchart, chart);
+        const fmt = (n, d = 2) => Number(n).toLocaleString("en-IN", { maximumFractionDigits: d });
+        function legend(c) { if (!c) return; const up = c.close >= c.open; $("legend").innerHTML = `O <b>${fmt(c.open)}</b> H <b>${fmt(c.high)}</b> L <b>${fmt(c.low)}</b> C <b class="${up ? "up" : "down"}">${fmt(c.close)}</b>` }
+        chart.subscribeCrosshairMove(p => { const d = p.seriesData && (p.seriesData.get(candle) || p.seriesData.get(line)); legend(d && d.open !== undefined ? d : lastRows[lastRows.length - 1]) });
+        function err(t) { $("msg").textContent = t; $("msg").classList.add("show") }
+        async function load(fit = true) {
+            $("msg").classList.remove("show"); $("spin").textContent = "Loading...";
+            try {
+                const r = await fetch(`/api/candles?source=${source}&symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`);
+                const b = await r.json(); if (!r.ok) throw new Error(b.detail || "Data load nahi hua");
+                symbol = b.symbol; $("symIn").value = symbol;
+                const sh = a => a.map(x => ({ ...x, time: x.time + IST })), c = sh(b.candles); lastRows = c;
+                candle.setData(c.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+                line.setData(c.map(x => ({ time: x.time, value: x.close })));
+                vol.setData(c.map(x => ({ time: x.time, value: x.volume, color: x.close >= x.open ? "rgba(38,166,154,.4)" : "rgba(239,83,80,.4)" })));
+                sma.setData(sh(b.indicators.sma20)); ema.setData(sh(b.indicators.ema50)); rs.setData(sh(b.indicators.rsi14));
+                if (fit) chart.timeScale().fitContent();
+                const s = b.summary, u = s.change >= 0;
+                $("sym").textContent = symbol; $("price").textContent = fmt(s.last);
+                $("chg").textContent = `${u ? "+" : ""}${fmt(s.change)} (${u ? "+" : ""}${s.change_pct}%) 1D`; $("chg").className = "mono " + (u ? "up" : "down");
+                $("hi").textContent = fmt(s.high); $("lo").textContent = fmt(s.low); $("vol").textContent = s.volume ? fmt(s.volume, 0) : "-";
+                legend(c[c.length - 1]); $("upd").textContent = "Updated " + new Date().toLocaleTimeString("en-IN");
+                document.querySelectorAll("#wl .row").forEach(e => e.classList.toggle("on", e.dataset.s === symbol));
+            } catch (e) { err(e.message) } finally { $("spin").textContent = "" }
+        }
+        async function loadWL() {
+            try {
+                const r = await fetch("/api/watchlist?source=" + source), d = await r.json(); if (!r.ok) return;
+                $("wl").innerHTML = d.map(i => `<div class="row ${i.symbol === symbol ? "on" : ""}" data-s="${i.symbol}"><div>${i.name}<small>${i.symbol}</small></div><div class="r mono">${fmt(i.last)}<small class="${i.change_pct >= 0 ? "up" : "down"}">${i.change_pct >= 0 ? "+" : ""}${i.change_pct}%</small></div></div>`).join("")
+            } catch (e) { }
+        }
+        const act = (seg, attr, val) => $(seg).querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset[attr] === val));
+        $("wl").onclick = e => { const r = e.target.closest(".row"); if (r) { symbol = r.dataset.s; load() } };
+        $("srcSeg").onclick = e => {
+            const b = e.target.closest("button"); if (!b) return; source = b.dataset.s; act("srcSeg", "s", source);
+            symbol = presets[source][0].symbol; $("pre").innerHTML = presets[source].map(p => `<option value="${p.symbol}">`).join(""); $("wl").innerHTML = ""; load(); loadWL()
+        };
+        $("tfSeg").onclick = e => { const b = e.target.closest("button"); if (!b) return; interval = b.dataset.i; limit = 300; act("tfSeg", "i", interval); act("rangeSeg", "r", ""); load() };
+        $("rangeSeg").onclick = e => { const b = e.target.closest("button"); if (!b) return;[interval, limit] = RANGES[b.dataset.r][source]; act("rangeSeg", "r", b.dataset.r); act("tfSeg", "i", interval); load() };
+        $("typeSeg").onclick = e => {
+            const b = e.target.closest("button"); if (!b) return; act("typeSeg", "t", b.dataset.t);
+            candle.applyOptions({ visible: b.dataset.t === "candle" }); line.applyOptions({ visible: b.dataset.t === "line" })
+        };
+        $("cSma").onchange = e => sma.applyOptions({ visible: e.target.checked }); $("cEma").onchange = e => ema.applyOptions({ visible: e.target.checked });
+        $("cVol").onchange = e => vol.applyOptions({ visible: e.target.checked });
+        $("cRsi").onchange = e => { $("rsiWrap").style.display = e.target.checked ? "block" : "none" };
+        $("goBtn").onclick = () => { const s = $("symIn").value.trim(); if (s) { symbol = s; load() } };
+        $("symIn").onkeydown = e => { if (e.key === "Enter") $("goBtn").click() };
+        setInterval(() => { if ($("cLive").checked) load(false) }, 30000); setInterval(loadWL, 60000);
+        fetch("/api/symbols").then(r => r.json()).then(p => { presets = p; $("pre").innerHTML = p[source].map(x => `<option value="${x.symbol}">`).join("") }).catch(() => { });
+        $("symIn").value = symbol; load(); loadWL();
+    </script>
+</body>
+
+</html>
